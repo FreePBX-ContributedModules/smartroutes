@@ -1051,7 +1051,10 @@ function smartroutes_fax_hook_core($viewing_itemid, $target_menuid, $smartroute)
     $html.='<tr><td><a href="#" class="info">'._("Fax Detection Time").'<span>'._('How long to wait and try to detect fax. Please note that callers to a '.$dahdi.' channel will hear ringing for this amount of time (i.e. the system wont "answer" the call, it will just play ringing)').'.</span></a>:</td>';
     $html.='<td><select name="faxdetectionwait" tabindex="'.++$tabindex.'">';
     if(!$fax['detectionwait']){$fax['detectionwait']=4;}//default wait time is 4 second
-    for($i=2;$i < 11; $i++){
+    
+    // ejr 2-15-11 allow zero seconds so fax context is created but we don't wait 
+    // important for trunks that dialout and connect - fax detected by dahdi after we go out over trunk - no need to wait here
+    for($i=0;$i < 11; $i++){
       $html.='<option value="'.$i.'" '.($fax['detectionwait']==$i?'SELECTED':'').'>'.$i.'</option>';
     }
     $html.='</select></td></tr>';
