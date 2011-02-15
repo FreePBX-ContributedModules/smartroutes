@@ -1,0 +1,13 @@
+<module>
+	<rawname>smartroutes</rawname>
+	<name>SmartRoutes</name>
+	<description>Route inbound calls based on ANI, CID, or other variables using external databases.</description>
+	<version>1.0</version>
+	<type>setup</type>
+	<category>Addons</category>
+	<menuitems>
+		<smartroutes category="Inbound Call Control">SmartRoutes</smartroutes>
+	</menuitems>
+	<location>release/smartroutes-1.0.tgz</location>
+	<info>http://www.qualityansweringservice.com/anatomy-oscc/freepbx/smartroutes</info>
+</module>
