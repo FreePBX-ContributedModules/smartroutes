@@ -110,7 +110,7 @@ if($action != 'edit') {
 		<li><font color=DodgerBlue>ODBC support appears to be installed in your Asterisk</font></li>
 		<?php } ?>
 		
-		<li>Asterisk is more reliable using MySQL through ODBC than through the integrated MySQL commands. High volume platforms may experience Asterisk restarts when using native MySQL within Asterisk.</li>
+		<li>Digium has recommended that MySQL interaction use the more stable ODBC as opposed to Asterisk Addons MySQL commands. High volume platforms have reported Asterisk restarts when using native MySQL (unassociated with this module).  Fore more info see: <a href="https://issues.asterisk.org/view.php?id=17964" target="_blank">this report</a> and <a href="http://forums.digium.com/viewtopic.php?f=13&t=76449" target="_blank">this post</a>.</li>
 		<li>To access multiple databases, or for more advanced call routing you can have smartroutes that route to other smartroutes.  Setting the variables in the dialplan will allow database lookup values to persist from one Smartroute to the next.</li>
 		<li>This module will set the FROM_DID variable in the catch-all section for inbound routes.</li>
 		<li>This module works best in FreePBX 2.8 or higher (destinations are condensed to a combobox). For FreePBX versions before 2.8, use custom destinations to route calls out a trunk but note that failover destinations won't work.</li>
@@ -342,19 +342,19 @@ function smartroutes_edit($id) {
     echo('<br />'."\n");
     echo('</tr></td>'."\n");    
     
-    echo('<tr><td><a href="#" class="info">'._("Database Type").'<span>'._("Select the database type to use.  Note that MySQL under ODBC is more stable than direct MySQL in Asterisk.").'</span></a>:</td>'."\n");
+    echo('<tr><td><a href="#" class="info">'._("Database Type").'<span>'._("Select the database type to use.").'</span></a>:</td>'."\n");
     echo('<td><select name="dbengine" tabindex="'.$tabindex++.'"><option value="odbc" '.($smartroute_route['dbengine'] == "odbc"? 'SELECTED':'').' >ODBC (Recommended)</option><option value="mysql" '.($smartroute_route['dbengine'] != "odbc"? 'SELECTED':'').' >MySQL</option></select></td></tr>'."\n");
     
-	echo('<tr><td><a href="#" class="info">'._("MySQL Host").'<span>'._("Enter the MySQL Host (if using MySQL). Note: ODBC is more reliable with Asterisk.").'</span></a></td>'."\n");
+	echo('<tr><td><a href="#" class="info">'._("MySQL Host").'<span>'._("Enter the MySQL Host (if using MySQL).").'</span></a></td>'."\n");
 	echo('<td><input type="text" name="mysql-host" value="'.$smartroute_route['mysql-host'].'" tabindex="'.$tabindex++.'"></td></tr>'."\n");
 	
-	echo('<tr><td><a href="#" class="info">'._("MySQL Database").'<span>'._("Enter the MySQL Database (if using MySQL). Note: ODBC is more reliable with Asterisk.").'</span></a></td>'."\n");
+	echo('<tr><td><a href="#" class="info">'._("MySQL Database").'<span>'._("Enter the MySQL Database (if using MySQL).").'</span></a></td>'."\n");
 	echo('<td><input type="text" name="mysql-database" value="'.$smartroute_route['mysql-database'].'" tabindex="'.$tabindex++.'"></td></tr>'."\n");
 	
-	echo('<tr><td><a href="#" class="info">'._("MySQL Username").'<span>'._("Enter the MySQL Username (if using MySQL). Note: ODBC is more reliable with Asterisk.").'</span></a></td>'."\n");
+	echo('<tr><td><a href="#" class="info">'._("MySQL Username").'<span>'._("Enter the MySQL Username (if using MySQL).").'</span></a></td>'."\n");
 	echo('<td><input type="text" name="mysql-username" value="'.$smartroute_route['mysql-username'].'" tabindex="'.$tabindex++.'"></td></tr>'."\n");
 
-	echo('<tr><td><a href="#" class="info">'._("MySQL Password").'<span>'._("Enter the MySQL Password (if using MySQL). Note: ODBC is more reliable with Asterisk.").'</span></a></td>'."\n");
+	echo('<tr><td><a href="#" class="info">'._("MySQL Password").'<span>'._("Enter the MySQL Password (if using MySQL).").'</span></a></td>'."\n");
 	echo('<td><input type="text" name="mysql-password" value="'.$smartroute_route['mysql-password'].'" tabindex="'.$tabindex++.'"></td></tr>'."\n");
 	
 	echo('<br>'."\n");
