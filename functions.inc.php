@@ -316,11 +316,27 @@ function ob_file_callback($buffer)
 
 function smartroutes_get_config($engine) {
 	global $ext;
-	global $version;	
+	global $version;
 	$replacements = array ('\\' => '\\\\','"' => '\\"','\'' => '\\\'',' ' => '\\ ',',' => '\\,','(' => '\\(',')' => '\\)','.' => '\\.','|' => '\\|' );	
 	
 	if($engine != 'asterisk') {
 		return;		
+		}
+
+	$app_set_16 = false;
+	
+	if(version_compare($version, "1.4", "gt")) {
+		$asterisk_config = smartroutes_read_config('/etc/asterisk/asterisk.conf');	
+		if(isset($asterisk_config['compat']['app_set'])) {
+			if($asterisk_config['compat']['app_set'] == "1.6") {
+				// this changes the way we "set" variables 
+				// with this setting, we cannot quote variable values
+				// without this setting we must quote variable values that have a comma (like ODBC multi-value return)
+				$app_set_16 = true;
+			
+				// we only use this for the database multi-value return
+				}
+			}
 		}
 		
 	// for debugging get_config
@@ -607,15 +623,16 @@ function smartroutes_get_config($engine) {
 				$ext->add($context, $extension, '', new ext_mysql_query('resultid', 'connid', $smartroute_queries[$main_query]['query']));
 				if($smartroute_queries[$main_query]['return_count'] == 1) {
 					// assign result of query to single var
+					
 					$ext->add($context, $extension, '', new ext_mysql_fetch('fetchid', 'resultid', $smartroute_queries[$main_query]['adv_varname1']));
 					}
 				else {
 					// assign result of query to array var (multiple results)
-					$ext->add($context, $extension, '', new ext_mysql_fetch('fetchid', 'resultid', $smartroute_queries[$main_query]['mysql_array_var']));					
+					$ext->add($context, $extension, '', new ext_mysql_fetch('fetchid', 'resultid', $smartroute_queries[$main_query]['mysql_array_var']));
 					}
 				$ext->add($context, $extension, '', new ext_mysql_clear('resultid'));                           
 				$ext->add($context, $extension, '', new ext_mysql_disconnect('connid'));
-				$ext->add($context, $extension, '', new ext_execif('$[${fetchid} = 0]', 'Set', $smartroute_queries[$main_query]['adv_varname1'].'=""'));
+				$ext->add($context, $extension, '', new ext_execif('$[${fetchid} = 0]', 'Set', $smartroute_queries[$main_query]['adv_varname1'].'='));
 				$ext->add($context, $extension, '', new ext_gotoif('$[${fetchid} = 0]','no_match_found'));
 				}
 			else if(!empty($smartroute_queries[$main_query]['odbc_query'])) {
@@ -623,12 +640,32 @@ function smartroutes_get_config($engine) {
 				
 				// write odbc version of query
 				if($smartroute_queries[$main_query]['return_count'] == 1) {
-					// assign result of query to single var
-					$ext->add($context, $extension, '', new ext_setvar($smartroute_queries[$main_query]['adv_varname1'], $smartroute_queries[$main_query]['odbc_query']['odbc_command']));
+					if(!$app_set_16) {
+						// need to put quote around value "just in case" there's a comma
+						
+						// assign result of query to single var
+						$ext->add($context, $extension, '', new ext_setvar($smartroute_queries[$main_query]['adv_varname1'], '"'.$smartroute_queries[$main_query]['odbc_query']['odbc_command'].'"'));
+						}
+					else {
+						// no quotes around value
+						
+						// assign result of query to single var
+						$ext->add($context, $extension, '', new ext_setvar($smartroute_queries[$main_query]['adv_varname1'], $smartroute_queries[$main_query]['odbc_query']['odbc_command']));
+						}
 					}
 				else {
-					// assign result of query to array var (multiple results)
-					$ext->add($context, $extension, '', new ext_setvar($smartroute_queries[$main_query]['array_var'], $smartroute_queries[$main_query]['odbc_query']['odbc_command']));
+					if(!$app_set_16) {
+						// need to put quote around value "just in case" there's a comma
+						
+						// assign result of query to array var (multiple results)
+						$ext->add($context, $extension, '', new ext_setvar($smartroute_queries[$main_query]['array_var'], '"'.$smartroute_queries[$main_query]['odbc_query']['odbc_command'].'"'));
+						}
+					else {
+						// no quotes
+						
+						// assign result of query to array var (multiple results)
+						$ext->add($context, $extension, '', new ext_setvar($smartroute_queries[$main_query]['array_var'], $smartroute_queries[$main_query]['odbc_query']['odbc_command']));
+						}
 					}
 				}
 				
@@ -734,7 +771,7 @@ function smartroutes_get_config($engine) {
 					if($smartroute['dbengine'] == 'mysql') {
 						// write mysql version of query
 						$ext->add($context, $extension, '', new ext_mysql_query('resultid', 'connid', $query['query']));
-						if($query['return_count'] == 1) {
+						if($query['return_count'] == 1) {							
 							// assign result of query to single var
 							$ext->add($context, $extension, '', new ext_mysql_fetch('fetchid', 'resultid', $query['adv_varname1']));
 							}
@@ -747,12 +784,29 @@ function smartroutes_get_config($engine) {
 					else {
 						// write odbc version of query
 						if($query['return_count'] == 1) {
-							// assign result of query to single var
-							$ext->add($context, $extension, '', new ext_setvar($query['adv_varname1'], $query['odbc_query']['odbc_command']));
+							if(!$app_set_16) {
+								// need to put quote around value "just in case" there's a comma
+						
+								// assign result of query to single var
+								$ext->add($context, $extension, '', new ext_setvar($query['adv_varname1'], '"'.$query['odbc_query']['odbc_command'].'"'));
+								}
+							else {
+								// no quotes
+								// assign result of query to single var
+								$ext->add($context, $extension, '', new ext_setvar($query['adv_varname1'], $query['odbc_query']['odbc_command']));
+								}
 							}
 						else {
-							// assign result of query to array var (multiple results)
-							$ext->add($context, $extension, '', new ext_setvar($query['array_var'], $query['odbc_query']['odbc_command']));
+							if(!$app_set_16) {
+								// need to put quote around value "just in case" there's a comma
+								// assign result of query to array var (multiple results)
+								$ext->add($context, $extension, '', new ext_setvar($query['array_var'], '"'.$query['odbc_query']['odbc_command'].'"'));
+								}
+							else {
+								// no quotes
+								// assign result of query to array var (multiple results)
+								$ext->add($context, $extension, '', new ext_setvar($query['array_var'], $query['odbc_query']['odbc_command']));
+								}
 							}
 						}
 					}
@@ -858,7 +912,59 @@ function smartroutes_create_odbc_query($smartroute, $query) {
 	// finish/close odbc command
 	$odbc_query['odbc_command'] .= ")}";
 	return $odbc_query;
-	} 	
+	}
+
+	
+function smartroutes_read_config($config_file) {
+	$config = array();
+	
+	// open config file for reading
+    $fh = fopen($config_file, 'r');
+    
+    // read current values
+    $section_name = "";
+	while($line=fgets($fh))	{
+		$line = trim($line);
+		if(empty($line)) continue;
+		
+		// found new section
+		if($line[0] == '[') {
+			// this is a new odbc function
+			$section_name = substr($line, 1, -1);
+			
+			// just in case there was a comment or something on the end and we didn't strip the end bracket
+			$end_bracket = strpos($section_name, ']');
+			if($end_bracket !== false) {
+				$section_name = substr($section_name,0,$end_bracket);
+				}
+			$section_name = trim($section_name);
+			$config[$section_name] = array();
+			}
+		else {
+			$value_setting = explode("=",$line);
+			}
+		
+		if(empty($section_name)) { 
+			$section_name = "general";
+			}
+		if(empty($value_setting) || empty($value_setting[0]) || empty($value_setting[1])) continue;
+		
+		$value_setting[0] = strtolower(trim($value_setting[0]));
+
+		if(isset($value_setting[1][0])) {
+			if($value_setting[1][0] == '>') {
+				// some asterisk assignments use => ...  (like the filepaths in asterisk.conf)	
+				$value_setting[1] = substr($value_setting[1],1);
+				}
+			}
+		$config[$section_name][$value_setting[0]] = trim($value_setting[1]);
+		}
+		 
+	// close config file
+    fclose($fh);
+    
+    return $config;	
+}	
 	
 
 	
@@ -867,42 +973,7 @@ function smartroutes_save_odbc_funcs($odbc_queries) {
 
 	// note that readsql and writesql are required for asterisk 1.6.x and higher.  In earlier versions, read and write might be required.
 	// don't forget to SQL_ESC the args in the query sql
-	$odbc_config = array();
-	
-	// open config file for reading
-    $fh = fopen('/etc/asterisk/func_odbc.conf', 'r');
-    
-    // read current functions
-    $func_name = "";
-	while($line=fgets($fh))	{
-		$line = trim($line);
-		if(empty($line)) continue;
-		
-		if($line[0] == '[') {
-			// this is a new odbc function
-			$func_name = substr($line, 1, -1);
-			
-			// just in case there was a comment or something on the end and we didn't strip the end bracket
-			$end_bracket = strpos($func_name, ']');
-			if($end_bracket !== false) {
-				$func_name = substr($func_name,0,$end_bracket);
-				}
-			$func_name = trim($func_name);
-			$odbc_config[$func_name] = array();
-			}
-		else {
-			$func_setting = explode("=",$line);
-			}
-		
-		if(empty($func_name)) continue;
-		if(empty($func_setting) || empty($func_setting[0]) || empty($func_setting[1])) continue;
-		
-		$func_setting[0] = strtolower(trim($func_setting[0]));		
-		$odbc_config[$func_name][$func_setting[0]] = trim($func_setting[1]);
-		}
-		 
-	// close config file
-    fclose($fh);
+	$odbc_config = smartroutes_read_config('/etc/asterisk/func_odbc.conf');
     
     // remove any of our previous smartroute functions
     foreach($odbc_config as $funcname => $funcdef) {
