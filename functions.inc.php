@@ -692,7 +692,7 @@ function smartroutes_get_config($engine) {
 					// set processing vars
 					$ext->add($context, $extension, 'destination'.$dest['index'], new ext_setvar('SR_PRIMARY_DEST', str_replace(',','^',$dest['destination'])));
 					$ext->add($context, $extension, '', new ext_setvar('SR_FAILOVER_DEST', str_replace(',','^',$dest['failover_dest'])));
-					$ext->add($context, $extension, '', new ext_setvar('SR_OR_EXTVAR', '"'.$dest['extvar'].'"'));
+					$ext->add($context, $extension, '', new ext_setvar('SR_OR_EXTVAR', $dest['extvar']));
 					if($macrodestination) {
 						// this tells processing section to use a macro and not goto for primary destination (allows failover)
 						$ext->add($context, $extension, '', new ext_setvar('SR_MACRO', "YES"));
