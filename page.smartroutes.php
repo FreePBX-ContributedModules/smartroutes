@@ -96,7 +96,16 @@ if($action != 'edit') {
 		<!--  default layout if no action taken -->
 		<h2><?php echo _("SmartRoutes"); ?></h2>
 		<!--  Splash Screen / Instructions here -->
-		<p>SmartRoutes is a module that allows you to control inbound call routing based on external database values.  Using SmartRoutes you can route incoming calls to the appropriate queue (skills based routing), you can automatically route calls from one trunk to another (sip->tdm gateway), you can set variables in the dial plan (like cdr, caller id name, etc), strip unnecessary caller-id and did prefixes from inbound calls, and much more based on the caller id, did called or other Asterisk call values.  As an example, you can route customer calls differently based on how much money they do with your business.</p> 
+		<p>SmartRoutes is a module that allows you to control inbound call routing based on external database values.  Using SmartRoutes you can route incoming calls to the appropriate queue (skills based routing), you can automatically route calls from one trunk to another (sip->tdm gateway), you can set variables in the dial plan (like cdr, caller id name, etc), strip unnecessary caller-id and did prefixes from inbound calls, and much more based on the caller id, did called or other Asterisk call values.  As an example, you can route customer calls differently based on how much money they do with your business.</p>
+		<?php
+			$trunk_default_route_name = smartroutes_get_trunkdefault();
+			
+			if($trunk_default_route_name != null) {
+				echo('<p><span style="background-color: #CCFFFF; color: black; line-height: 125%; padding:2pt;">&nbsp;<b style="color: red;">'._("Important:").'</b>&nbsp;&nbsp;'._("Inbound trunk calls processed by SmartRoute:").' ['.$trunk_default_route_name.']&nbsp;</span><br>'."\n");
+				echo('<span style="color:gray;">To process standard inbound routes, choose destination "SmartRoutes" and specify "* FreePBX Std Inbound Routes *"</span></p>');				
+				}
+		?>
+		 
 		<b>Notes:</b>
 		<ul>
 		<?php if(!$mysqlInstalled) {?>
@@ -110,7 +119,7 @@ if($action != 'edit') {
 		<li><font color=DodgerBlue>ODBC support appears to be installed in your Asterisk</font></li>
 		<?php } ?>
 		
-		<li>Digium has recommended that MySQL interaction use the more stable ODBC as opposed to Asterisk Addons MySQL commands (which have been deprecated).  Fore more info see: <a href="https://issues.asterisk.org/view.php?id=17964" target="_blank">this report</a> and <a href="http://forums.digium.com/viewtopic.php?f=13&t=76449" target="_blank">this post</a>.</li>
+		<li>Digium has recommended that MySQL interaction use the more stable ODBC as opposed to Asterisk Addons MySQL commands (which have been deprecated).  For more info see: <a href="https://issues.asterisk.org/view.php?id=17964" target="_blank">this report</a> and <a href="http://forums.digium.com/viewtopic.php?f=13&t=76449" target="_blank">this post</a>.</li>
 		<li>To access multiple databases, or for more advanced call routing you can have smartroutes that route to other smartroutes.  Setting the variables in the dialplan will allow database lookup values to persist from one Smartroute to the next.</li>
 		<li>This module will set the FROM_DID variable in the catch-all section for inbound routes.</li>
 		<li>This module works best in FreePBX 2.8 or higher (destinations are condensed to a combobox). For FreePBX versions before 2.8, use custom destinations to route calls out a trunk but note that failover destinations won't work.</li>
@@ -170,7 +179,24 @@ function smartroutes_edit($id) {
     echo('<td><input type="text" '.(!empty($usedby)? 'READONLY': '').' size="20" name="name" value="'.htmlspecialchars($smartroute_route['name']).'" tabindex="'.++$tabindex.'"/></td></tr>'."\n");    
         
     echo('</table>'."\n");	
-	
+    
+	// ** setup the "default trunk route" row
+	// ****************************
+	echo('<table>'."\n");
+	echo('<tr><td colspan="2"><h5><a href=# class="info">'._("Default Trunk Route")."\n".'<span>');
+    echo _("Default Trunk Route");
+    echo('<br /><br /></span></a><hr></h5></td></tr>'."\n");    
+    	
+    echo('<tr><td><a href="#" class="info">'._("Select this SmartRoute as the primary handler for trunk calls?").'<span>'._("Should this SmartRoute be the iniital route for processing trunk calls?  (Note: Will bypass static routes - but can be sent to static routes as destination below).").'</span></a>:</td>'."\n");
+    echo('<td><select name="trunkdefault" tabindex="'.$tabindex++.'"><option value="1" '.($smartroute_route['trunkdefault'] == "1"? 'SELECTED':'').' >Yes</option><option value="0" '.($smartroute_route['trunkdefault'] != "1"? 'SELECTED':'').' >No</option></select></td></tr>'."\n");
+    
+	if($smartroute_route['trunkdefault'] == "1") {
+		echo('<tr><td colspan="2"><br><span style="background-color: #CCFFFF; color: black; line-height: 125%; padding:2pt;">&nbsp;<b style="color: red;">'._("Important:").'</b>&nbsp;&nbsp;'._("Inbound trunk calls processed by this SmartRoute").'&nbsp;</span><br>'."\n");
+		echo('<span style="color:gray;">To process standard inbound routes, choose destination "SmartRoutes" and specify "* FreePBX Std Inbound Routes *"</span></td></tr>'."\n");				
+		}    
+            
+    echo('</table>'."\n");
+    	
 	
 	echo('<table>'."\n");
 	echo('<tr><td colspan="2"><h5><a href=# class="info">'._("Queries")."\n".'<span>');
@@ -257,7 +283,7 @@ function smartroutes_edit($id) {
     echo('<tr><td colspan="2">&nbsp;</td></tr>'."\n");
     
     echo('<tr><td colspan="2"><div class="smartroutes_dest"><table>'."\n");
-	echo('<tr id="smartroutes_destlabels"><td style="padding-left: 18px;"><a href=# class="info">'._("Match Value").'<span><br>'._("The value returned from the main query that this route defines.").'<br></span></a></td><td><a href=# class="info">'._("Trunk Extension").'<span><br>'._("(optional) When sending to a trunk, allow specifing new destination DID value or variable.  This feature only works for the primary destination as a trunk and requires FreePBX version 2.8 or higher.  To use this capability for failover, have failover go to another smartroute where the primary destination trunk is the failover trunk with an override extension.<br><br>Note that any Asterisk vars used here need to be indicated as they are in Asterisk with '\${asteriskvar}'.").'<br></span></a></td><td><a href=# class="info">'._("Destination").'<span><br>'._("Primary destination for this route.").'<br></span></a></td><td><a href=# class="info">'._("Failover").'<span><br>'._("When primary destination is a *trunk* that is unable to connect, use this destination.").'<br></span></a></td></tr>'."\n");
+	echo('<tr id="smartroutes_destlabels"><td style="padding-left: 18px;"><a href=# class="info">'._("Match Value").'<span><br>'._("The value returned from the main query that this route defines.").'<br></span></a></td><td><a href=# class="info">'._("Override Primary<br>Extension/Context").'<span><br>'._("(optional) When destination normally passes '\${EXTEN}' in the Asterisk dialplan goto call, allow specifing new destination DID value or variable.  If the destination normally passes the 's' extension then we will replace the primary context with this variable or value (the specific target of the type selected is irrelevant because we'll override it).  This feature only applies to the primary destination.  To use this capability for failover, have failover go to another smartroute where the primary destination is the failover destination with a primary override extension/context.<br><br>Note that any Asterisk vars used here need to be indicated in Asterisk value notation with '\${asteriskvar}'.<br><br>Example extension translation uses: Custom Contexts, Smartroutes, Trunks (FreePBX 2.8+), and the FreePBX Std Inbound Routes.<br><br>Example context translation uses: IVR, and Announcements.").'<br></span></a></td><td><a href=# class="info">'._("Destination").'<span><br>'._("Primary destination for this route.").'<br></span></a></td><td><a href=# class="info">'._("Failover").'<span><br>'._("When primary destination is a *trunk* that is unable to connect, use this destination.  Note: This feature requires FreePBX version 2.8 or higher. ").'<br></span></a></td></tr>'."\n");
 	
 	// get freepbx version
 	$installed_ver = getversion();
@@ -343,9 +369,9 @@ function smartroutes_edit($id) {
     echo('</tr></td>'."\n");    
     
     echo('<tr><td><a href="#" class="info">'._("Database Type").'<span>'._("Select the database type to use.").'</span></a>:</td>'."\n");
-    echo('<td><select name="dbengine" tabindex="'.$tabindex++.'"><option value="odbc" '.($smartroute_route['dbengine'] == "odbc"? 'SELECTED':'').' >ODBC (Recommended)</option><option value="mysql" '.($smartroute_route['dbengine'] != "odbc"? 'SELECTED':'').' >MySQL</option></select></td></tr>'."\n");
+    echo('<td><select name="dbengine" tabindex="'.$tabindex++.'"><option value="odbc" '.($smartroute_route['dbengine'] == "odbc"? 'SELECTED':'').' >ODBC (Recommended)</option><option value="mysql" '.($smartroute_route['dbengine'] != "odbc"? 'SELECTED':'').' >MySQL (Deprecated)</option></select></td></tr>'."\n");
     
-	echo('<tr><td><a href="#" class="info">'._("MySQL Host").'<span>'._("Enter the MySQL Host (if using MySQL).").'</span></a></td>'."\n");
+	echo('<tr><td><a href="#" class="info">'._("MySQL Host").'<span>'._("Enter the MySQL Host (if using MySQL) DEPRECATED.").'</span></a></td>'."\n");
 	echo('<td><input type="text" name="mysql-host" value="'.$smartroute_route['mysql-host'].'" tabindex="'.$tabindex++.'"></td></tr>'."\n");
 	
 	echo('<tr><td><a href="#" class="info">'._("MySQL Database").'<span>'._("Enter the MySQL Database (if using MySQL).").'</span></a></td>'."\n");
@@ -359,8 +385,22 @@ function smartroutes_edit($id) {
 	
 	echo('<br>'."\n");
 
-	echo('<tr><td><a href="#" class="info">'._("ODBC DSN").'<span>'._("Enter the ODBC DSN (if using ODBC) RECOMMENDED").'</span></a></td>'."\n");
-	echo('<td><input type="text" name="odbc-dsn" value="'.$smartroute_route['odbc-dsn'].'" tabindex="'.$tabindex++.'"></td></tr>'."\n");    
+	// list dsn's configured in Asterisk (/etc/asterisk/res_odbc.conf
+	$dsn_list = smartroutes_get_dsns();
+	if(is_array($dsn_list) && count($dsn_list)) {
+		echo('<tr><td><a href="#" class="info">'._("ODBC DSN").'<span>'._("Enter the ODBC DSN (if using ODBC) RECOMMENDED").'</span></a></td>'."\n");
+		echo('<td><select name="odbc-dsn" tabindex="'.$tabindex++.'">."\n"');
+		foreach($dsn_list as $dsn_name) {
+    		echo('<option value="'.$dsn_name.'" '.($smartroute_route['odbc-dsn'] == $dsn_name? 'SELECTED':'').' >'.$dsn_name.'</option>'."\n");
+			}
+    
+    	echo('</select></td></tr>'."\n");
+		}
+	else {		
+		// just provide an entry field (assume they will add the odbc source to asterisk later
+		echo('<tr><td><a href="#" class="info">'._("ODBC DSN  (Note: None found configured in Asterisk)").'<span>'._("Enter the ODBC DSN (if using ODBC) RECOMMENDED").'</span></a></td>'."\n");		
+		echo('<td><input type="text" name="odbc-dsn" value="'.$smartroute_route['odbc-dsn'].'" tabindex="'.$tabindex++.'"></td></tr>'."\n");    
+		}   	
     
     echo('</table>'."\n");	
 
@@ -648,6 +688,9 @@ $(document).ready(function(){
 		
 			// *** NOTE THAT WE USE THE SAME FORM FIELD LINES AS ABOVE EXCEPT THAT THE ++ IS REMOVED FROM tabindex AND WE ADJUST THE VAL BEFORE EACH LINE
 			// we also modified the $destSetNum value to support dynamic creation
+			
+			// get freepbx version
+			$installed_ver = getversion();		
 			 
 			// fix for our .js here from loop above
 			$dest['matchkey'] = '';
@@ -669,9 +712,6 @@ $(document).ready(function(){
 			echo('<input type="text" class="smartroute_dest_match" id="smartroute_dest_match_'.$destRowsUsed.'" name="smartroute_dest_match['.$destRowsUsed.']" value="'.$dest['matchkey'].'" tabindex="'.$tabindex.'" /></nobr></td>');
 			$tabindex = "'+tabindex1+'";		
 			echo('<td><input type="text" class="smartroute_dest_extvar" id="smartroute_dest_extvar_'.$destRowsUsed.'" name="smartroute_dest_extvar['.$destRowsUsed.']" value="'.$dest['extvar'].'" tabindex="'.$tabindex.'" /></td>');
-
-			// get freepbx version
-			$installed_ver = getversion();
 			
 			//removed the ++ from $destSetNum and hard-coded the destSet numbers (from original code in form above)
 			// also escape single quotes so it won't break the javascript string insert_html

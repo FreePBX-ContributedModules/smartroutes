@@ -19,7 +19,7 @@
 
 include '../fax/functions.inc.php';  // so we can include the same fax hook code that the standard inbound route includes (if available)
 
-
+// return a list of smartroutes for menu/display
 function smartroutes_list() {
 	global $db;
 
@@ -31,11 +31,13 @@ function smartroutes_list() {
 }
 
 
+// return the asterisk dialplan goto destination for a specific smartroute
 function smartroutes_getdest($id) {
 	return array('smartroute-'.$id.',s,1');
 	}
-
 	
+	
+// return the database record for a given smartroute
 function smartroutes_get_route($id) {
 	global $db;
 	
@@ -48,6 +50,8 @@ function smartroutes_get_route($id) {
 	return $route[0];
 	}
 
+
+// return the queries for a given route	
 function smartroutes_get_queries($id) {
 	global $db;
 
@@ -57,6 +61,8 @@ function smartroutes_get_queries($id) {
 	return $queries;
 	}
 
+	
+// return the destinations for a given route	
 function smartroutes_get_dests($id) {
 	global $db;
 
@@ -67,6 +73,51 @@ function smartroutes_get_dests($id) {
 	}
 	
 	
+// return the name of the smartroute marked as trunk default	
+function smartroutes_get_trunkdefault() {
+	global $db;
+	
+	$route = $db->getRow("SELECT name FROM smartroute where trunkdefault=1");
+	
+	if(DB::IsError($route) || count($route) == 0) {
+		return null;
+		}
+		
+	if(!empty($route[0]) && !DB::IsError($route) && isset($route[0])) return $route[0];
+	
+	return null;
+	}
+
+	
+// return the dialplan destination for the smartroute marked as trunk default	
+function smartroutes_get_trunkdefault_gotoroute() {
+	global $db;
+	
+	$route = $db->getRow("SELECT id FROM smartroute where trunkdefault=1");
+	
+	if(DB::IsError($route) || count($route) == 0) {
+		return null;
+		}
+		
+	if(!empty($route[0]) && !DB::IsError($route) && isset($route[0])) return smartroutes_getdest($route[0]);
+	
+	return null;
+	}
+	
+
+// return a list of the Asterisk odbc resources defined	
+function smartroutes_get_dsns() {
+	$ret_dsns = array();
+	
+	$asterisk_dsns = smartroutes_read_config('/etc/asterisk/res_odbc.conf');	
+	if(count($asterisk_dsns)) {
+		$ret_dsns = array_keys($asterisk_dsns);
+		}
+	return $ret_dsns;
+	}
+	
+
+// add a smartroute entry	
 function smartroutes_add_route($name) {
 	global $db;
 	
@@ -85,6 +136,8 @@ function smartroutes_add_route($name) {
 	return null;
 	}
 
+	
+// delete a smartroute entry	
 function smartroutes_del($id) {
 	global $db;
 
@@ -95,6 +148,8 @@ function smartroutes_del($id) {
 	return null;
 }
 
+
+// save a smartroute entry
 function smartroutes_save($id) {
 	global $db;	
 
@@ -112,6 +167,11 @@ function smartroutes_save($id) {
 		}
 	
 	foreach ($_POST as $key => $value) {
+		if($key == 'trunkdefault' && $value == '1') {
+			// only one smartroute can be the trunk default so disable all 
+			sql("UPDATE `smartroute` SET `trunkdefault` = '0'");			
+			}
+		
 		switch ($key) {
 			case 'faxenabled':
 				// FIX true/false
@@ -145,6 +205,7 @@ function smartroutes_save($id) {
 			case 'destination':
 			case 'faxdetection':
 			case 'legacy_email':
+			case 'trunkdefault':
 			case 'faxdetectionwait':
 				$sql_value = $db->escapeSimple($value);
 				$sql .= " `$key` = '$sql_value',";
@@ -292,10 +353,17 @@ function smartroutes_save($id) {
 	}
 
 	
+// return an array of smartroute destinations	
 function smartroutes_destinations() {
 	$destinations = array();
 	$smartroutes = smartroutes_list();
 
+	// first destination is static inbound routes
+	// 
+	// ** in case we translated a DID and want to process based on static inbound routes)
+	// ** or if a smartroute is set for default trunk call processing but we want to hand off to static inbound routes
+	$destinations[] = array('destination' => 'from-pstn,${EXTEN},1','description' => '* FreePBX Std Inbound Routes *');
+	
 	if(isset($smartroutes)) {
 		foreach($smartroutes as $route){
 			$destinations[] = array('destination' => 'smartroute-'.$route['id'].',${EXTEN},1','description' => $route['name']);
@@ -314,6 +382,8 @@ function ob_file_callback($buffer)
   fwrite($ob_file,$buffer);
 }
 
+
+// write the dialplan for smartroutes
 function smartroutes_get_config($engine) {
 	global $ext;
 	global $version;
@@ -343,6 +413,21 @@ function smartroutes_get_config($engine) {
 //	global $ob_file;
 //	$ob_file = fopen('/tmp/smartroute.log','w');
 //	ob_start('ob_file_callback');
+
+   	// do we need to configure smartroutes to handle all trunk calls (before static inbound routes)   	
+   	$trunk_default_gotoroute = smartroutes_get_trunkdefault_gotoroute();
+   	if($trunk_default_gotoroute != null) {
+   		// smartroutes are taking point on inbound trunk calls
+   		// create a new from-trunk context
+	   	$ext->add('from-trunk', '_.', '', new ext_setvar('__FROM_DID','${EXTEN}'));
+	   	$ext->add('from-trunk', '_.', '', new ext_setvar('__CATCHALL_DID','${EXTEN}'));
+	   	$ext->add('from-trunk', '_.', '', new ext_goto($trunk_default_gotoroute[0]));		
+   		$ext->add('from-trunk', 'i', '', new ext_setvar('__CATCHALL_DID','${INVALID_EXTEN}'));
+	   	$ext->add('from-trunk', 'i', '', new ext_goto($trunk_default_gotoroute[0]));
+
+	   	// to get to the original static "inbound routes" we go to "from-pstn" (which is the sole inclusion of the existing from-trunk)		
+   		}  	
+		
 
 	// *** FIRST FIX CATCHALL TO SET FROM_DID  (we need this when the catch-all is routed to smartroutes for processing - that way we can search on FROM_DID)
 	// NEED THE INVALID EXTENSION MATCH FOR DID'S WITH + IN FRONT (like Level3)
@@ -725,6 +810,17 @@ function smartroutes_get_config($engine) {
 						$dest['destination'] = "Macro(dialout-trunk,".$destparts[1].",".(empty($dest['extvar'])?"${FROM_DID}":$dest['extvar']).",)";
 						$macrodestination = true;
 						}
+						
+					// also exchange EXTEN for SR_OR_EXTVAR if set FOR ANY PRIMARY DESTINATION
+					// also set the actual context for any destination with an ,s, extension FOR ANY PRIMARY DESTINATION
+					$dest['extvar'] = trim($dest['extvar']);
+					if(!empty($dest['extvar'])) {
+						$dest['destination'] = str_replace('${EXTEN}',$dest['extvar'],$dest['destination']);
+						$dest_str_part_pos = strpos($dest['destination'], ',s,');
+						if(is_numeric($dest_str_part_pos) ) {
+							$dest['destination'] = $dest['extvar'].substr($dest['destination'],$dest_str_part_pos);
+							}
+						}						
 					
 					// set processing vars
 					$ext->add($context, $extension, 'destination'.$dest['index'], new ext_setvar('SR_PRIMARY_DEST', str_replace(',','^',$dest['destination'])));
@@ -738,7 +834,7 @@ function smartroutes_get_config($engine) {
 					else {
 						// clear these
 						$ext->add($context, $extension, '', new ext_setvar('SR_MACRO', ""));
-						$ext->add($context, $extension, '', new ext_setvar('SR_MACRO_TRUNK', ""));
+						$ext->add($context, $extension, '', new ext_setvar('SR_MACRO_TRUNK', ""));						
 						}
 					$ext->add($context, $extension, '', new ext_goto("process_match_found"));
 					}
@@ -861,9 +957,9 @@ function smartroutes_get_config($engine) {
 //	ob_end_flush();
 //	fclose($ob_file);		
 	}
-	
 
-		
+
+// helper function for the dialplan generation code - process an individual odbc query		
 function smartroutes_create_odbc_query($smartroute, $query) {
 	$odbc_query = array();
 	$clean_name = preg_replace("/[^a-zA-Z0-9\s]/", "_", $smartroute['name']);
@@ -915,6 +1011,7 @@ function smartroutes_create_odbc_query($smartroute, $query) {
 	}
 
 	
+// read an asterisk config file into an array	
 function smartroutes_read_config($config_file) {
 	$config = array();
 	
@@ -967,7 +1064,7 @@ function smartroutes_read_config($config_file) {
 }	
 	
 
-	
+// save the Asterisk odbc queries/funcs file /etc/asterisk/func_odbc.conf 	
 function smartroutes_save_odbc_funcs($odbc_queries) {
 	global $version;
 
@@ -1025,9 +1122,27 @@ function smartroutes_save_odbc_funcs($odbc_queries) {
     fclose($fh);
 	
 }
+
+
+// when a smartroute is setup for default trunk call processing, provide notification on the static inbound route page
+function smartroutes_hook_core($viewing_itemid, $target_menuid) {
+	$html = '';
 	
-	
-	
+	if ($target_menuid == 'did')  {	
+		$trunk_default_route_name = smartroutes_get_trunkdefault();
+			
+		if($trunk_default_route_name != null) {
+			$html = '<tr><td colspan="2"><h5><hr>';
+			$html .= '<p><span style="background-color: #CCFFFF; color: black; line-height: 125%; padding:2pt;">&nbsp;<b style="color: red;">'._("Important:").'</b>&nbsp;&nbsp;'._("Inbound trunk calls first processed by SmartRoute:").' ['.$trunk_default_route_name.']&nbsp;</span></p>'."\n";				
+    		$html .= '<hr></h5></td></tr>';
+			}
+		}
+
+	return $html;
+	}
+
+
+// from fax module - provide fax functions for smartroutes (like on the static inbound route pages)	
 function smartroutes_fax_hook_core($viewing_itemid, $target_menuid, $smartroute){  // ejr 2-31-11 modified to pass smartroute array
   //hmm, not sure why engine_getinfo() isnt being called here?! should probobly read: $info=engine_getinfo();
   //this is what serves fax code to inbound routing
@@ -1147,8 +1262,6 @@ function smartroutes_fax_hook_core($viewing_itemid, $target_menuid, $smartroute)
   return $html;
 
 }
-    
-	
 	
 
 ?>

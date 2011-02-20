@@ -1,0 +1,13 @@
+SmartRoutes Change Log
+===============================================================================
+
+This file documents functionality changes between SmartRoutes versions.
+
+==[ Changes between version 1.0 and 1.1 ]======================================
+
+ * added pulldown to select pre-configured odbc dsn's from Asterisk's res_odbc.conf.
+ * allow SmartRoutes to be primary processor for trunk calls.
+ * allow override extension/context for destinations other than trunks.   
+ * allow standard FreePBX inbound routes as a SmartRoutes destination (with override extension).
+ * minor bug fixes
+ * new database field value trunkdefault in table smartroute

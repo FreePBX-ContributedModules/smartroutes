@@ -12,7 +12,8 @@
 CREATE TABLE IF NOT EXISTS `smartroute` (
   `id` int unsigned NOT NULL PRIMARY KEY auto_increment,
   `name` varchar(40) NOT NULL,  
-  `destination` varchar(50) default NULL,
+  `trunkdefault` tinyint(1) default '0',  
+  `destination` varchar(50) default NULL,  
   `faxenabled` tinyint(1) default NULL,  
   `faxdetection` varchar(20) default NULL,
   `faxdetectionwait` varchar(5) default NULL,
@@ -38,6 +39,11 @@ CREATE TABLE IF NOT EXISTS `smartroute` (
   `mysql-password` varchar(60) default NULL,
   `search-type` varchar(20) default 'EXACT'
 );
+
+--
+-- Upgrade existing tables with a new field for version 1.1
+--
+ALTER TABLE `smartroute` ADD `trunkdefault` TINYINT(1) default '0';
 
 --
 -- Table structure for table `smartroute_query`
