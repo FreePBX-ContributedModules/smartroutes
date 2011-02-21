@@ -3,6 +3,12 @@ SmartRoutes Change Log
 
 This file documents functionality changes between SmartRoutes versions.
 
+==[ Changes between version 1.1 and 1.2 ]======================================
+
+ * added call tracking for smartroutes call traffic shaping 
+ * added freepbx cronmanager job to clean call tracking data
+ * tweak freepbx dialplan so hangup macro is more consisently called (more accurate call tracking)
+
 ==[ Changes between version 1.0 and 1.1 ]======================================
 
  * added pulldown to select pre-configured odbc dsn's from Asterisk's res_odbc.conf.
@@ -11,3 +17,13 @@ This file documents functionality changes between SmartRoutes versions.
  * allow standard FreePBX inbound routes as a SmartRoutes destination (with override extension).
  * minor bug fixes
  * new database field value trunkdefault in table smartroute
+ 
+ 
+ 
+ TO-DO:
+ -------
+ - Allow destination matches based on DB search OR an existing dialplan variable (maybe from a previous search)
+ - Notes field to record descriptions of what the routes are doing
+ - Better identification of sql returns by counting commas outside parens
+ - Only allow call tracking if we can auto-configure the DB for local asterisk and then auto-configure the search with a couple options
+ - Section for ad-hoc setting of Asterisk dialplan variables (as going through routes, may want to set some vars and route based on those later)

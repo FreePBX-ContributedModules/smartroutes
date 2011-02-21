@@ -74,6 +74,23 @@ function smartroutes_get_dests($id) {
 	
 	
 // return the name of the smartroute marked as trunk default	
+function smartroutes_get_calltrackingstatus_enabled() {
+	global $db;
+	
+	$route = $db->getRow("SELECT name FROM smartroute where trackcurrentcalls=1 LIMIT 1");
+	
+	if(DB::IsError($route) || count($route) == 0) {
+		return "No";
+		}
+		
+	if(!empty($route[0]) && !DB::IsError($route) && isset($route[0])) return "Yes";
+	
+	return "No";
+	}
+	
+	
+	
+// return the name of the smartroute marked as trunk default	
 function smartroutes_get_trunkdefault() {
 	global $db;
 	
@@ -206,6 +223,7 @@ function smartroutes_save($id) {
 			case 'faxdetection':
 			case 'legacy_email':
 			case 'trunkdefault':
+			case 'trackcurrentcalls':
 			case 'faxdetectionwait':
 				$sql_value = $db->escapeSimple($value);
 				$sql .= " `$key` = '$sql_value',";
@@ -387,6 +405,7 @@ function ob_file_callback($buffer)
 function smartroutes_get_config($engine) {
 	global $ext;
 	global $version;
+	$calltracking_enabled = false;
 	$replacements = array ('\\' => '\\\\','"' => '\\"','\'' => '\\\'',' ' => '\\ ',',' => '\\,','(' => '\\(',')' => '\\)','.' => '\\.','|' => '\\|' );	
 	
 	if($engine != 'asterisk') {
@@ -424,7 +443,7 @@ function smartroutes_get_config($engine) {
 	   	$ext->add('from-trunk', '_.', '', new ext_goto($trunk_default_gotoroute[0]));		
    		$ext->add('from-trunk', 'i', '', new ext_setvar('__CATCHALL_DID','${INVALID_EXTEN}'));
 	   	$ext->add('from-trunk', 'i', '', new ext_goto($trunk_default_gotoroute[0]));
-
+		$ext->add('from-trunk', 'h', '', new ext_macro('hangupcall',''));
 	   	// to get to the original static "inbound routes" we go to "from-pstn" (which is the sole inclusion of the existing from-trunk)		
    		}  	
 		
@@ -439,6 +458,8 @@ function smartroutes_get_config($engine) {
    	$ext->add('ext-did-catchall', '_.', '', new ext_setvar('__FROM_DID','${EXTEN}'));
    	// actually, FreePBX is setting FROM_DID in ext-did-001 as 's' so let's keep our own var too *** MAKE SURE TO USE _. so we can get non-numeric DID's too 
    	$ext->add('ext-did-catchall', '_.', '', new ext_setvar('__CATCHALL_DID','${EXTEN}'));
+
+	$ext->add('ext-did-catchall', 'h', '', new ext_macro('hangupcall',''));
 	
 	// get list of routes
 	$smartroutes = smartroutes_list();
@@ -510,7 +531,7 @@ function smartroutes_get_config($engine) {
 					// ------------------------------------------------------------------------------------------------------------
 					// NOTE!!!: not precise because complex queries with sub-function returns will increase value (but we cap at 5)
 					// ------------------------------------------------------------------------------------------------------------
-					$sqlparts = explode(" FROM ", strtoupper($smartroute_queries[$index]['query']));
+					$sqlparts = explode(" FROM ", strtoupper($smartroute_queries[$index]['query']), 2);
 					$smartroute_queries[$index]['return_count'] = substr_count($sqlparts[0], ",")+1;			
 					// we cap at 5 returns tracked
 					if($smartroute_queries[$index]['return_count'] > 5) 
@@ -542,6 +563,9 @@ function smartroutes_get_config($engine) {
 					}										
 				}
 
+			// =================================				
+			// **** START WRITING DIALPLAN) ****
+			// =================================
 			// **** START WRITING DIALPLAN FOR THIS ROUTE
 			// **** first start with the invalid handler (when the sip provider sends non-numeric characters in DID (like '+')
 			$ext->add($context, 'i', '', new ext_noop('Smartroute invalid DID handler - FIX EXTENSION VAR'));
@@ -599,8 +623,72 @@ function smartroutes_get_config($engine) {
 			if($smartroute['limitciddigits'] != "" && $smartroute['limitciddigits'] > '0') {
 				// only use the last xx digits from caller-id (effectively stripping unnecessary prefixes)
 		    	$ext->add($context, $extension, '', new ext_setvar('CALLERID(num)','${CALLERID(num):-'.$smartroute['limitciddigits'].'}'));
-				}					
-			
+				}
+
+			// ========================================================================================				
+			// **** IF CALL TRACKING ENABLED THEN TRACK THIS CALL (NOW THAT DID AND CID ARE CLEAN) ****
+			// ========================================================================================
+			if($smartroute['trackcurrentcalls'] == '1') {
+				$calltracking_enabled = true;
+				$ext->add($context, $extension, '', new ext_noop('Call Tracking Enabled'));
+
+				if($smartroute['dbengine'] == 'mysql') {
+					$tracking_query = 'INSERT INTO smartroute_currentcalls (`calldate`,`clid`,`src`,`dst`,`channel`,`uniqueid`) VALUES(\'${CDR(answer)}\',\'${CDR(clid)}\',\'${CDR(src)}\',\'${CDR(dst)}\',\'${CDR(channel)}\',\'${CDR(uniqueid)}\')';
+					
+					if($escapeMySQL) {
+						// version 1.2/1.4 asterisk requires escaping inline mysql searches
+						$tracking_query = str_replace(array_keys($replacements), array_values($replacements), $tracking_query);
+						}
+					
+					// write mysql version of query
+					$ext->add($context, $extension, '', new ext_mysql_connect('connid', $smartroute['mysql-host'],  $smartroute['mysql-username'],  $smartroute['mysql-password'],  $smartroute['mysql-database']));
+					$ext->add($context, $extension, '', new ext_mysql_query('resultid', 'connid', $tracking_query));
+					$ext->add($context, $extension, '', new ext_mysql_disconnect('connid'));
+					
+					// handle cleanup
+					$tracking_query = 'DELETE FROM smartroute_currentcalls WHERE `channel`=\'${CDR(channel)}\'';
+					
+					if($escapeMySQL) {
+						// version 1.2/1.4 asterisk requires escaping inline mysql searches
+						$tracking_query = str_replace(array_keys($replacements), array_values($replacements), $tracking_query);
+						}
+					
+					// write mysql version of query
+					$ext->add('macro-hangupcall', 's', '', new ext_mysql_connect('connid', $smartroute['mysql-host'],  $smartroute['mysql-username'],  $smartroute['mysql-password'],  $smartroute['mysql-database']));
+					$ext->add('macro-hangupcall', 's', '', new ext_mysql_query('resultid', 'connid', $tracking_query));
+					$ext->add('macro-hangupcall', 's', '', new ext_mysql_disconnect('connid'));					
+					}
+				else if(!empty($smartroute_queries[$main_query]['odbc_query'])) {
+					// create odbc query
+					$tracking_odbc = array();
+					$tracking_odbc['prefix'] = "SMARTRDB";
+					$tracking_odbc['dsn'] = $smartroute['odbc-dsn'];
+					$tracking_odbc['label'] = strtoupper('CALLRECEIVED'.$smartroute['id']);
+					$tracking_odbc['write'] = 'INSERT INTO smartroute_currentcalls (`calldate`,`clid`,`src`,`dst`,`channel`,`uniqueid`) VALUES(\'${ARG1}\',\'${SQL_ESC(${ARG2})}\',\'${ARG3}\',\'${ARG4}\',\'${SQL_ESC(${ARG5})}\',\'${ARG6}\')';
+
+					// store to write to file when done
+					$odbc_queries[] = $tracking_odbc;
+
+					// write odbc version of insert *** NOTE - Any spaces before/after commas will insert a space in the database field				
+					$ext->add($context, $extension, '', new ext_setvar('SMARTRDB_CALLRECEIVED'.$smartroute['id'].'(${CDR(start)},${CDR(clid)},${CDR(src)},${CDR(dst)},${CHANNEL},${UNIQUEID})', ''));
+					
+					// handle cleanup
+					$tracking_odbc['prefix'] = "SMARTRDB";
+					$tracking_odbc['dsn'] = $smartroute['odbc-dsn'];
+					$tracking_odbc['label'] = strtoupper('CALLENDED'.$smartroute['id']);
+					$tracking_odbc['write'] = 'DELETE FROM smartroute_currentcalls WHERE `uniqueid`=\'${ARG1}\'';
+										
+					// store to write to file when done
+					$odbc_queries[] = $tracking_odbc;
+					
+					// write odbc version of remove
+					$ext->add('macro-hangupcall', 's', '', new ext_setvar('SMARTRDB_CALLENDED'.$smartroute['id'].'(${UNIQUEID})', ''));
+					}				
+				}
+								
+			// ===================================				
+			// **** STANDARD ROUTING DIALPLAN ****
+			// ===================================				
 			if (!empty($item['mohclass']) && trim($smartroute['mohclass']) != 'default') {
 				$ext->add($context, $extension, '', new ext_setmusiconhold($smartroute['mohclass']));
 				$ext->add($context, $extension, '', new ext_setvar('__MOHCLASS',$smartroute['mohclass']));
@@ -641,6 +729,9 @@ function smartroutes_get_config($engine) {
 				$ext->add($context, $extension, '', new ext_setvar('CALLERID(name)','${RGPREFIX}${CALLERID(name)}'));
 				}
 				
+			// ========================================				
+			// **** STANDARD ROUTING DIALPLAN: FAX ****
+			// ========================================				
 			// *** FAX DIALPLAN COMPONENTS
 			if (function_exists('fax_get_config') && $smartroute['faxenabled'] == 1) {
 				$ext->add($context, 'fax', '', new ext_goto('${CUT(FAX_DEST,^,1)},${CUT(FAX_DEST,^,2)},${CUT(FAX_DEST,^,3)}'));				
@@ -693,7 +784,9 @@ function smartroutes_get_config($engine) {
 				$ext->splice($context, $extension, 'dest-ext', new ext_setvar('FAX_DEST',''));
 				}
 				
-				
+			// ====================				
+			// **** MAIN QUERY ****
+			// ====================
 			// **** DONE WITH STANDARD INBOUND ROUTE DIALPLAN 
 			// write the main query in dialplan	
 			$ext->add($context, $extension, '', new ext_noop('Smartroute: '.$smartroute['name']));
@@ -788,6 +881,9 @@ function smartroutes_get_config($engine) {
 					}			
 				}
 				
+			// =============================				
+			// **** DEFAULT DESTINATION ****
+			// =============================				
 			// write the default destination goto
 			$ext->add($context, $extension, 'no_match_found', new ext_noop('No Smartroute Match: Goto Default Destination'));
 			
@@ -796,6 +892,9 @@ function smartroutes_get_config($engine) {
 				}
 			$ext->add($context, $extension, '', new ext_hangup(''));
 			
+			// ==============================				
+			// **** MATCHED DESTINATIONS ****
+			// ==============================			
 			// write the destination sections
 			if(!empty($smartroute_dests)) {
 				// first write the goto statements (redirect to another part of this section - multiline)
@@ -844,6 +943,9 @@ function smartroutes_get_config($engine) {
 			$ext->add($context, $extension, '', new ext_noop('Smartroute Error - should never get here.'));
 			$ext->add($context, $extension, '', new ext_hangup(''));
 							
+			// =============================				
+			// **** PROCESS MATCH FOUND ****
+			// =============================			
 			// write the section to process found match"
 			// first write the secondary queries to pull data
 			// then see if we need to use the extvar
@@ -948,6 +1050,68 @@ function smartroutes_get_config($engine) {
 			}
 		}
 		
+	if($calltracking_enabled) {
+		// fix app-blackhole (and others) that skips macro-hangup (FreePBX version 2.8) 
+		// - important to have disconnected calls reach hangup macro to clear call tracking
+		// - first time tested call tracking, caller hungup during queue announcement and call tracking not cleared
+		// announcements, ivrs, etc. fixed with hooks
+		$ext->add('app-blackhole', 'h', '', new ext_macro('hangupcall',''));
+		$ext->add('app-blacklist', 'h', '', new ext_macro('hangupcall',''));
+		$ext->add('app-blacklist-add', 'h', '', new ext_macro('hangupcall',''));
+		$ext->add('app-blacklist-add-invalid', 'h', '', new ext_macro('hangupcall',''));
+		$ext->add('app-blacklist-last', 'h', '', new ext_macro('hangupcall',''));
+		$ext->add('app-blacklist-remove', 'h', '', new ext_macro('hangupcall',''));
+		$ext->add('app-pbdirectory', 'h', '', new ext_macro('hangupcall',''));	
+		$ext->add('app-announcement', 'h', '', new ext_macro('hangupcall','')); // hangup during these and no macro execution	
+		$ext->add('app-directory', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-echo-test', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-speakextennum', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-speakingclock', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-fmf-toggle', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('ext-findmefollow', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('fmgrps', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('sub-fmsetcid', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-recordings', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-recordings', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-dialvm', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-vmmain', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('disa', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('disa-dial', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('sub-rgsetcid', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-speeddial', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-speeddial-set', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-queue-toggle', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('from-queue', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-dnd-off', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-dnd-on', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-dnd-toggle', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('ext-dnd-hints', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('ext-paging', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('cidlookup', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-callwaiting-cwoff', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-callwaiting-cwon', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-cf-busy-off', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-cf-busy-any', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-cf-busy-on', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-cf-off', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-cf-any', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-cf-on', 'h', '', new ext_macro('hangupcall',''));
+		$ext->add('app-cf-unavailable-off', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-cf-unavailable-on', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-cf-toggle', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('ext-cf-hints', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-blacklist-check', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-userlogonoff', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('app-pickup', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('ext-did', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('from-did-direct-ivr', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('ext-trunk', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('bad-number', 'h', '', new ext_macro('hangupcall',''));	
+		$ext->add('sub-pincheck', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('vm-callme', 'h', '', new ext_macro('hangupcall','')); 	
+		$ext->add('from-internal-additional', 'h', '', new ext_macro('hangupcall',''));	
+		}		
+		
 	// NOW WRITE ODBC QUERY FILE
 	if(count($odbc_queries) > 0) {
 		smartroutes_save_odbc_funcs($odbc_queries);
@@ -1038,7 +1202,7 @@ function smartroutes_read_config($config_file) {
 			$config[$section_name] = array();
 			}
 		else {
-			$value_setting = explode("=",$line);
+			$value_setting = explode("=",$line, 2);
 			}
 		
 		if(empty($section_name)) { 
@@ -1093,12 +1257,22 @@ function smartroutes_save_odbc_funcs($odbc_queries) {
     	$odbc_config[$query['label']]['prefix'] = $query['prefix'];
     	$odbc_config[$query['label']]['dsn'] = $query['dsn'];
     	
-		if(version_compare($version, "1.6", "lt")) {
-			$odbc_config[$query['label']]['read'] = $query['query'];
-			}
-		else {
-			$odbc_config[$query['label']]['readsql'] = $query['query'];
-			}    	
+    	if(isset($query['write'])) {
+			if(version_compare($version, "1.6", "lt")) {
+				$odbc_config[$query['label']]['write'] = $query['write'];
+				}
+			else {
+				$odbc_config[$query['label']]['writesql'] = $query['write'];
+				}   	
+    		}
+    	else {    	
+			if(version_compare($version, "1.6", "lt")) {
+				$odbc_config[$query['label']]['read'] = $query['query'];
+				}
+			else {
+				$odbc_config[$query['label']]['readsql'] = $query['query'];
+				}    	
+    		}
     	}  
 	
 	// write the odbc config
@@ -1112,7 +1286,7 @@ function smartroutes_save_odbc_funcs($odbc_queries) {
 		}
 	// add newline at end
 	$output[] = "";
-		
+	
     // open config file for writing and truncate to zero length
 	$fh = fopen('/etc/asterisk/func_odbc.conf', 'w+');		
     $output = implode("\n", $output);
@@ -1142,6 +1316,31 @@ function smartroutes_hook_core($viewing_itemid, $target_menuid) {
 	}
 
 
+// this will add hangup macro to announcements and ivr's if call tracking enabled	
+function smartroutes_hookGet_config($engine){
+	global $version;  	
+	global $core_conf;  
+	global $ext;	
+  	
+  	if(smartroutes_get_calltrackingstatus_enabled() == "Yes") {
+  		// add hangup macro to ivrs and announcements
+  		
+  		// func from modules/announcement/functions.inc.php   		
+		foreach(announcement_list() as $row) {
+			$ext->add('app-announcement-'.$row['announcement_id'], 'h', '', new ext_macro('hangupcall',''));			
+			}
+  		// func from modules/ivr/functions.inc.php   		
+		foreach(ivr_list() as $row) {
+			$ext->add('ivr-'.$row['ivr_id'], 'h', '', new ext_macro('hangupcall',''));			
+			}	
+  		// func from modules/core/functions.inc.php
+  		foreach(core_routing_list() as $row) {
+  			$ext->add('outrt-'.$row['route_id'], 'h', '', new ext_macro('hangupcall',''));	
+  			}
+  		}
+	}	
+	
+	
 // from fax module - provide fax functions for smartroutes (like on the static inbound route pages)	
 function smartroutes_fax_hook_core($viewing_itemid, $target_menuid, $smartroute){  // ejr 2-31-11 modified to pass smartroute array
   //hmm, not sure why engine_getinfo() isnt being called here?! should probobly read: $info=engine_getinfo();

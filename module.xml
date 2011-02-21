@@ -2,7 +2,7 @@
 	<rawname>smartroutes</rawname>
 	<name>SmartRoutes</name>
 	<description>SmartRoutes is a module that allows you to control inbound call routing based on external database values. Using SmartRoutes you can pre-process incoming DIDs, route incoming calls to the appropriate queue (skills based routing), you can automatically route calls from one trunk to another (sip->tdm gateway), you can set variables in the dial plan (like cdr, caller id name, etc), strip unnecessary caller-id and did prefixes from inbound calls, and much more based on the caller id, did called or other Asterisk call values. As an example, you can route customer calls differently based on how much money they do with your business.</description>
-	<version>1.1</version>
+	<version>1.2</version>
 	<publisher>Qualityansweringservice.com (VoiceNation Live)</publisher>
 	<license>GPLv2</license>
 	<type>setup</type>
@@ -10,9 +10,9 @@
 	<menuitems>
 		<smartroutes category="Inbound Call Control">SmartRoutes</smartroutes>
 	</menuitems>
-	<location>contributed_modules/release/smartroutes-1.1.tgz</location>
 	<info>http://www.qualityansweringservice.com/anatomy-oscc/freepbx/smartroutes</info>
     <changelog>
+    				*1.2* added call tracking for smartroutes call traffic shaping 
 					*1.1* added pulldown to select pre-configured odbc dsn's from Asterisk's res_odbc.conf, allow SmartRoutes to be primary processor for trunk calls, allow override extension/context for destinations other than trunks, allow standard FreePBX inbound routes as a SmartRoutes destination (with override extension), minor bug fixes, new database field value trunkdefault in table smartroute  
  					*1.0* initial commit  
     </changelog>
@@ -20,5 +20,6 @@
 		<version>2.7.0beta1</version>
 		<phpversion>5.1.0</phpversion>
 	</depends>
-<md5sum>dca390482044308ecbf15ff75e85ec12</md5sum>
+	<location>contributed_modules/release/smartroutes-1.2.tgz</location>	
+	<md5sum>unknown</md5sum>
 </module>

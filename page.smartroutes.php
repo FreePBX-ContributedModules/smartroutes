@@ -187,8 +187,8 @@ function smartroutes_edit($id) {
     echo _("Default Trunk Route");
     echo('<br /><br /></span></a><hr></h5></td></tr>'."\n");    
     	
-    echo('<tr><td><a href="#" class="info">'._("Select this SmartRoute as the primary handler for trunk calls?").'<span>'._("Should this SmartRoute be the iniital route for processing trunk calls?  (Note: Will bypass static routes - but can be sent to static routes as destination below).").'</span></a>:</td>'."\n");
-    echo('<td><select name="trunkdefault" tabindex="'.$tabindex++.'"><option value="1" '.($smartroute_route['trunkdefault'] == "1"? 'SELECTED':'').' >Yes</option><option value="0" '.($smartroute_route['trunkdefault'] != "1"? 'SELECTED':'').' >No</option></select></td></tr>'."\n");
+    echo('<tr><td colspan="2"><a href="#" class="info">'._("Select this SmartRoute as the primary handler for trunk calls?").'<span>'._("Should this SmartRoute be the iniital route for processing trunk calls?  (Note: Will bypass static routes - but can be sent to static routes as destination below).").'</span></a>:&nbsp;');
+    echo('<select name="trunkdefault" tabindex="'.$tabindex++.'"><option value="1" '.($smartroute_route['trunkdefault'] == "1"? 'SELECTED':'').' >Yes</option><option value="0" '.($smartroute_route['trunkdefault'] != "1"? 'SELECTED':'').' >No</option></select></td></tr>'."\n");
     
 	if($smartroute_route['trunkdefault'] == "1") {
 		echo('<tr><td colspan="2"><br><span style="background-color: #CCFFFF; color: black; line-height: 125%; padding:2pt;">&nbsp;<b style="color: red;">'._("Important:").'</b>&nbsp;&nbsp;'._("Inbound trunk calls processed by this SmartRoute").'&nbsp;</span><br>'."\n");
@@ -401,6 +401,12 @@ function smartroutes_edit($id) {
 		echo('<tr><td><a href="#" class="info">'._("ODBC DSN  (Note: None found configured in Asterisk)").'<span>'._("Enter the ODBC DSN (if using ODBC) RECOMMENDED").'</span></a></td>'."\n");		
 		echo('<td><input type="text" name="odbc-dsn" value="'.$smartroute_route['odbc-dsn'].'" tabindex="'.$tabindex++.'"></td></tr>'."\n");    
 		}   	
+
+	// ** setup the "track current calls" row
+	// ****************************
+    echo('<tr><td><a href="#" class="info">'._("Enable database tracking of current calls?").'<span>'._("This setting causes current calls to be tracked in a database for call traffic shaping with SmartRoutes.  NOTE: It will require that this SmartRoute use the FreePBX 'asterisk' database (and the 'smartroutes_currentcalls' table).<br><br>When enabled, current calls are tracked in a table so that you can perform a lookup in the table to count the number of calls to a specific DID, from a given CID, or in total and route calls differently based on the call volume.  Using this feature, if a single DID floods your system with calls then you can send all calls (after the first xx calls) to a lower priority so that other customers/DIDs aren't affected or first send calls to a high-volume announcement.  Sample settings to return the number of calls to this DID:<br><br><b>host:</b> localhost, <b>database:</b> asterisk, <b>table:</b> smartroute_currentcalls<br><b>sql</b>: SELECT COUNT(*) FROM (SELECT src,dst,uniqueid FROM smartroute_currentcalls WHERE (dst=${FROM_DID} AND calldate < DATE_SUB(NOW(), INTERVAL 2 MINUTE))) as T").'</span></a>:</td>'."\n");
+    echo('<td><select name="trackcurrentcalls" tabindex="'.$tabindex++.'"><option value="1" '.($smartroute_route['trackcurrentcalls'] == "1"? 'SELECTED':'').' >Yes</option><option value="0" '.($smartroute_route['trackcurrentcalls'] != "1"? 'SELECTED':'').' >No</option></select></td></tr>'."\n");
+		
     
     echo('</table>'."\n");	
 
@@ -416,7 +422,7 @@ function smartroutes_edit($id) {
 
 	echo('<tr><td><a href="#" class="info">'._("Limit DID Digits").'<span>'._("Enter the trailing xx digits to keep the DID (effectively stripping unnecessary prefixes).  Leave blank or enter 0 for no stripping of initial DID digits.  This is important if your SIP provider puts extra digits at the beginning of your DID number (ex: \"+001\") and that number format isn't appropriate for your dialplan or won't be accepted by another SIP provider the call may go out on.").'</span></a></td>'."\n");
 	echo('<td><input type="text" size="2" name="limitdiddigits" value="'.$smartroute_route['limitdiddigits'].'" tabindex="'.$tabindex++.'"></td></tr>'."\n");
-	
+
     
 	// ***** FOLLOWING USED WITH FORM FIELDS TAKEN FROM FREEPBX DID/INBOUND ROUTE
 	// ****************************************************************************
@@ -528,6 +534,7 @@ function smartroutes_edit($id) {
 	}	
 	
 ?>
+
 
 
 <script language="javascript"> 
