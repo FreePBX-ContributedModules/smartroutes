@@ -22,7 +22,11 @@ This file documents functionality changes between SmartRoutes versions.
  
  TO-DO:
  -------
- - Allow destination matches based on DB search OR an existing dialplan variable (maybe from a previous search)
+  - Allow destination matches based on DB search OR an existing dialplan variable (maybe from a previous search)
+ ** unnecessary ** Can be done with SQL query SELECT('${var}')
+ - Section for ad-hoc setting of Asterisk dialplan variables (as going through routes, may want to set some vars and route based on those later) 
+ ** unnecessary ** Can be done with SQL query SELECT('${var}') & var to assign is one of 5 
+
  - Notes field to record descriptions of what the routes are doing
  - Better identification of sql returns by counting commas outside parens
  - Only allow call tracking if we can auto-configure the DB for local asterisk and then auto-configure the search with a couple options
