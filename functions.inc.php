@@ -876,7 +876,14 @@ function smartroutes_get_config($engine) {
 					foreach($smartroute_dests as $index => $dest) {
 						$smartroute_dests[$index]['index'] = $index;
 							
-						$ext->add($context, $extension, '', new ext_gotoif('$["${'.$smartroute_queries[$main_query]['adv_varname1'].'}" '.$matchtype.' "'.$dest['matchkey'].'"]',"destination".$index));
+						if($matchtype == "=") {
+							// values as strings
+							$ext->add($context, $extension, '', new ext_gotoif('$["${'.$smartroute_queries[$main_query]['adv_varname1'].'}" '.$matchtype.' "'.$dest['matchkey'].'"]',"destination".$index));
+							}
+						else {
+							// values as integers
+							$ext->add($context, $extension, '', new ext_gotoif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'} '.$matchtype.' '.$dest['matchkey'].']',"destination".$index));
+							}
 						}
 					}			
 				}
