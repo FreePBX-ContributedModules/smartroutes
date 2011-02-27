@@ -12,6 +12,7 @@
 	</menuitems>
 	<info>http://www.qualityansweringservice.com/anatomy-oscc/freepbx/smartroutes</info>
     <changelog>
+    				*1.3* Adjust cronmanager script to support pre-2.9 FreePBX and 2.9+ bootstrapping (clean_calltracking )    
     				*1.2* added call tracking for smartroutes call traffic shaping 
 					*1.1* added pulldown to select pre-configured odbc dsn's from Asterisk's res_odbc.conf, allow SmartRoutes to be primary processor for trunk calls, allow override extension/context for destinations other than trunks, allow standard FreePBX inbound routes as a SmartRoutes destination (with override extension), minor bug fixes, new database field value trunkdefault in table smartroute  
  					*1.0* initial commit  
