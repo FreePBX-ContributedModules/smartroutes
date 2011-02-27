@@ -3,6 +3,9 @@ SmartRoutes Change Log
 
 This file documents functionality changes between SmartRoutes versions.
 
+==[ Changes between version 1.2 and 1.3 ]======================================
+ - Adjust clean_calltracking cronmanager script to support pre-2.9 FreePBX and 2.9+ bootstrapping
+
 ==[ Changes between version 1.1 and 1.2 ]======================================
 
  * added call tracking for smartroutes call traffic shaping 
@@ -31,4 +34,3 @@ This file documents functionality changes between SmartRoutes versions.
  - Better identification of sql returns by counting commas outside parens
  - Only allow call tracking if we can auto-configure the DB for local asterisk and then auto-configure the search with a couple options
  - Section for ad-hoc setting of Asterisk dialplan variables (as going through routes, may want to set some vars and route based on those later)
- - Adjust clean_calltracking cronmanager script to support pre-2.9 FreePBX and 2.9+ amportal.conf
