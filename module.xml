@@ -22,5 +22,5 @@
 		<phpversion>5.1.0</phpversion>
 	</depends>
 	<location>contributed_modules/release/smartroutes-1.3.tgz</location>	
-	<md5sum>410075b2b81ac2a40992a24457ba0fce</md5sum>
+	<md5sum>ee599024d76ce5ca8de3bcc596e15077</md5sum>
 </module>
