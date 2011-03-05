@@ -40,6 +40,8 @@ if(!isset($amp_conf)) {
 $sql = "DELETE FROM smartroute_currentcalls WHERE calldate < DATE_SUB(NOW(), INTERVAL 1 HOUR)";
 $db->query($sql);
 
+exit(0);
+
 // =============================				
 // **** DONE WITH CRON TASK ****
 // =============================
