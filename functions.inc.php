@@ -393,6 +393,28 @@ function smartroutes_destinations() {
 }
 
 
+
+// freepbx function to check validity of destination
+function smartroutes_getdestinfo($dest) {
+	if (substr(trim($dest),0,11) == 'smartroute-') {
+		$grp = explode(',',$dest);
+		$id = substr($grp[0], 11);
+		
+		$smartroute_route = smartroutes_get_route($id);
+		
+		if (empty($smartroute_route)) {
+			return array();
+		} else {
+			return array('description' => sprintf(_("Smartroute Name %s: "),$smartroute_route['name']),
+			             'edit_url' => 'config.php?display=smartroutes&amp;action=edit&amp;id='.$smartroute_route['id'],
+								  );
+		}
+	} else {
+		return false;
+	}
+}
+
+
 // for debugging get_config
 function ob_file_callback($buffer)
 {
