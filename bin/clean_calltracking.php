@@ -198,35 +198,45 @@ if (!function_exists('_')) {
   }
 }
 
-function out($text) {
-  //echo $text."\n";
+if (!function_exists('out')) {
+	function out($text) {
+	  //echo $text."\n";
+	}
 }
-
-function outn($text) {
-  //echo $text;
+	
+if (!function_exists('outn')) {	
+	function outn($text) {
+	  //echo $text;
+	}
 }
-
-function error($text) {
-  echo "[ERROR] ".$text."\n";
+	
+if (!function_exists('error')) {
+	function error($text) {
+	  echo "[ERROR] ".$text."\n";
+	}
 }
-
-function fatal($text, $extended_text="", $type="FATAL") {
-  global $db;
-
-  echo "[$type] ".$text." ".$extended_text."\n";
-
-  if(!DB::isError($db)) {
-    $nt = notifications::create($db);
-    $nt->add_critical('cron_manager', $type, $text, $extended_text);
-  }
-
-  exit(1);
+	
+if (!function_exists('fatal')) {
+	function fatal($text, $extended_text="", $type="FATAL") {
+	  global $db;
+	
+	  echo "[$type] ".$text." ".$extended_text."\n";
+	
+	  if(!DB::isError($db)) {
+	    $nt = notifications::create($db);
+	    $nt->add_critical('cron_manager', $type, $text, $extended_text);
+	  }
+	
+	  exit(1);
+	}
 }
-
-function debug($text) {
-  global $debug;
-
-  if ($debug) echo "[DEBUG-preDB] ".$text."\n";
+	
+if (!function_exists('debug')) {
+	function debug($text) {
+	  global $debug;
+	
+	  if ($debug) echo "[DEBUG-preDB] ".$text."\n";
+	}
 }
 
 // bootstrap retrieve_conf by getting the AMPWEBROOT since that is currently where the necessary
