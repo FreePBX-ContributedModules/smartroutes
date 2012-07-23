@@ -23,8 +23,8 @@
 $mysqlInstalled = file_exists('/usr/lib/asterisk/modules/app_addon_sql_mysql.so');
 
 // next check odbc
-// look for /usr/lib/asterisk/modules/func_odbc.so
-$odbcInstalled = file_exists('/usr/lib/asterisk/modules/func_odbc.so');
+// look for /usr/lib/asterisk/modules/func_odbc.so (asterisk 1.4/1.6) or app_mysql.so (1.8+)
+$odbcInstalled = (file_exists('/usr/lib/asterisk/modules/func_odbc.so') || file_exists('/usr/lib/asterisk/modules/app_mysql.so'));
 
 
 $destSetNum = 0; // track destination set numbers used (important for dynamic creation - 2 per row)
