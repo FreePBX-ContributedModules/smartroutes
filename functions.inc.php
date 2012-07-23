@@ -447,7 +447,16 @@ function smartroutes_get_config($engine) {
 			
 				// we only use this for the database multi-value return
 				}
+			else if($asterisk_config['compat']['app_set'] == "1.4") {
+				$app_set_16 = true;				
+				}				
+			else if(version_compare($version, "1.6", "gt")) {
+				$app_set_16 = true;					
+				}
 			}
+		else if(version_compare($version, "1.6", "gt")) {
+			$app_set_16 = true;					
+			}		
 		}
 		
 	// for debugging get_config
@@ -460,10 +469,10 @@ function smartroutes_get_config($engine) {
    	if($trunk_default_gotoroute != null) {
    		// smartroutes are taking point on inbound trunk calls
    		// create a new from-trunk context
-	   	$ext->add('from-trunk', '_.', '', new ext_setvar('__FROM_DID','${EXTEN}'));
-	   	$ext->add('from-trunk', '_.', '', new ext_setvar('__CATCHALL_DID','${EXTEN}'));
+	   	$ext->add('from-trunk', '_.', '', new ext_setvar('__FROM_DID','${FILTER(0-9,${EXTEN})}'));
+	   	$ext->add('from-trunk', '_.', '', new ext_setvar('__CATCHALL_DID','${FILTER(0-9,${EXTEN})}'));
 	   	$ext->add('from-trunk', '_.', '', new ext_goto($trunk_default_gotoroute[0]));		
-   		$ext->add('from-trunk', 'i', '', new ext_setvar('__CATCHALL_DID','${INVALID_EXTEN}'));
+   		$ext->add('from-trunk', 'i', '', new ext_setvar('__CATCHALL_DID','${FILTER(0-9,${INVALID_EXTEN})}'));
 	   	$ext->add('from-trunk', 'i', '', new ext_goto($trunk_default_gotoroute[0]));
 		$ext->add('from-trunk', 'h', '', new ext_macro('hangupcall',''));
 	   	// to get to the original static "inbound routes" we go to "from-pstn" (which is the sole inclusion of the existing from-trunk)		
@@ -473,13 +482,13 @@ function smartroutes_get_config($engine) {
 	// *** FIRST FIX CATCHALL TO SET FROM_DID  (we need this when the catch-all is routed to smartroutes for processing - that way we can search on FROM_DID)
 	// NEED THE INVALID EXTENSION MATCH FOR DID'S WITH + IN FRONT (like Level3)
 	$ext->add('ext-did-catchall', 'i', '', new ext_noop('Catch-All DID Match - Found ${INVALID_EXTEN} - You probably want a DID for this.'));
-   	$ext->add('ext-did-catchall', 'i', '', new ext_setvar('__CATCHALL_DID','${INVALID_EXTEN}'));
+   	$ext->add('ext-did-catchall', 'i', '', new ext_setvar('__CATCHALL_DID','${FILTER(0-9,${INVALID_EXTEN})}'));
 	$ext->add('ext-did-catchall', 'i', '', new ext_goto('ext-did,s,1'));		
 		
 	// on FreePBX 2.8 ours is the first line for this context
-   	$ext->add('ext-did-catchall', '_.', '', new ext_setvar('__FROM_DID','${EXTEN}'));
+   	$ext->add('ext-did-catchall', '_.', '', new ext_setvar('__FROM_DID','${FILTER(0-9,${EXTEN})}'));
    	// actually, FreePBX is setting FROM_DID in ext-did-001 as 's' so let's keep our own var too *** MAKE SURE TO USE _. so we can get non-numeric DID's too 
-   	$ext->add('ext-did-catchall', '_.', '', new ext_setvar('__CATCHALL_DID','${EXTEN}'));
+   	$ext->add('ext-did-catchall', '_.', '', new ext_setvar('__CATCHALL_DID','${FILTER(0-9,${EXTEN})}'));
 
 	$ext->add('ext-did-catchall', 'h', '', new ext_macro('hangupcall',''));
 	
@@ -840,7 +849,7 @@ function smartroutes_get_config($engine) {
 				
 				// write odbc version of query
 				if($smartroute_queries[$main_query]['return_count'] == 1) {
-					if(!$app_set_16) {
+					if(!$app_set_16 && version_compare($version, "1.8", "lt")) {
 						// need to put quote around value "just in case" there's a comma
 						
 						// assign result of query to single var
@@ -854,7 +863,7 @@ function smartroutes_get_config($engine) {
 						}
 					}
 				else {
-					if(!$app_set_16) {
+					if(!$app_set_16 && version_compare($version, "1.8", "lt")) {
 						// need to put quote around value "just in case" there's a comma
 						
 						// assign result of query to array var (multiple results)
@@ -898,12 +907,12 @@ function smartroutes_get_config($engine) {
 					foreach($smartroute_dests as $index => $dest) {
 						$smartroute_dests[$index]['index'] = $index;
 							
-						if($matchtype == "=") {
+						if($matchtype == "=" && version_compare($version, "1.8", "lt")) {
 							// values as strings
 							$ext->add($context, $extension, '', new ext_gotoif('$["${'.$smartroute_queries[$main_query]['adv_varname1'].'}" '.$matchtype.' "'.$dest['matchkey'].'"]',"destination".$index));
 							}
 						else {
-							// values as integers
+							// values as integers OR in version 1.8 never double quote values
 							$ext->add($context, $extension, '', new ext_gotoif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'} '.$matchtype.' '.$dest['matchkey'].']',"destination".$index));
 							}
 						}
