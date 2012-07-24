@@ -634,7 +634,7 @@ function smartroutes_get_config($engine) {
 			// if FROM_DID isn't set (OR IS SET AS 's') then set it as the EXTEN passed into this context, or the CATCHALL_DID, or the CALLERID(dnid)
 			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"] ','Set','__FROM_DID=${EXTEN}'));
 			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"] ','Set','__FROM_DID=${CATCHALL_DID}'));
-			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"] ','Set','__FROM_DID=${CALLERID(dnid)}'));
+			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"] ','Set','__FROM_DID=${FILTER(0-9,${CALLERID(dnid)})}')); 
 			
 			if($smartroute['limitdiddigits'] != "" && $smartroute['limitdiddigits'] > '0') {
 				// only use the last xx digits from did (effectively stripping unnecessary prefixes)
