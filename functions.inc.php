@@ -632,9 +632,9 @@ function smartroutes_get_config($engine) {
 			$ext->add($context, $extension, '', new ext_noop('Smartroute: Start Standard Processing - DB Routing'));
 			
 			// if FROM_DID isn't set (OR IS SET AS 's') then set it as the EXTEN passed into this context, or the CATCHALL_DID, or the CALLERID(dnid)
-			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"] ','Set','__FROM_DID=${EXTEN}'));
-			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"] ','Set','__FROM_DID=${CATCHALL_DID}'));
-			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"] ','Set','__FROM_DID=${FILTER(0-9,${CALLERID(dnid)})}')); 
+			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"]','Set','__FROM_DID=${EXTEN}'));
+			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"]','Set','__FROM_DID=${CATCHALL_DID}'));
+			$ext->add($context, $extension, '', new ext_execif('$[ "${FROM_DID}" = "" | "${FROM_DID}" = "s"]','Set','__FROM_DID=${FILTER(0-9,${CALLERID(dnid)})}')); 
 			
 			if($smartroute['limitdiddigits'] != "" && $smartroute['limitdiddigits'] > '0') {
 				// only use the last xx digits from did (effectively stripping unnecessary prefixes)
@@ -914,13 +914,13 @@ function smartroutes_get_config($engine) {
 					    else if($matchtype == "=" && version_compare($version, "1.6", "gt")) {	
 							// values as strings
 							// asterisk 1.8 doesn't like the null values when no db match found so set var as "(nullstring)" before comparison
-							$ext->add($context, $extension, '', new ext_execif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'}=""]','Set',$smartroute_queries[$main_query]['adv_varname1'].'="NULL"'));							
+							$ext->add($context, $extension, '', new ext_execif('$["${'.$smartroute_queries[$main_query]['adv_varname1'].'}foo"="foo"]','Set',$smartroute_queries[$main_query]['adv_varname1'].'="NULL"'));							
 							$ext->add($context, $extension, '', new ext_gotoif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'} '.$matchtype.' "'.$dest['matchkey'].'"]',"destination".$index));					    	
 					    	}
 						else {
 							// values as integers OR in version 1.8 never double quote values
 							// asterisk 1.8 doesn't like the null values when no db match found so set var as "(nullstring)" before comparison
-							$ext->add($context, $extension, '', new ext_execif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'}=""]','Set',$smartroute_queries[$main_query]['adv_varname1'].'="NULL"'));							
+							$ext->add($context, $extension, '', new ext_execif('$["${'.$smartroute_queries[$main_query]['adv_varname1'].'}foo"="foo"]','Set',$smartroute_queries[$main_query]['adv_varname1'].'="NULL"'));							
 							$ext->add($context, $extension, '', new ext_gotoif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'} '.$matchtype.' '.$dest['matchkey'].']',"destination".$index));
 							}
 						}
