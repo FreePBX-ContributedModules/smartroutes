@@ -911,8 +911,16 @@ function smartroutes_get_config($engine) {
 							// values as strings
 							$ext->add($context, $extension, '', new ext_gotoif('$["${'.$smartroute_queries[$main_query]['adv_varname1'].'}" '.$matchtype.' "'.$dest['matchkey'].'"]',"destination".$index));
 							}
+					    else if($matchtype == "=" && version_compare($version, "1.6", "gt")) {	
+							// values as strings
+							// asterisk 1.8 doesn't like the null values when no db match found so set var as "(nullstring)" before comparison
+							$ext->add($context, $extension, '', new ext_execif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'}=""]','Set',$smartroute_queries[$main_query]['adv_varname1'].'="NULL"'));							
+							$ext->add($context, $extension, '', new ext_gotoif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'} '.$matchtype.' "'.$dest['matchkey'].'"]',"destination".$index));					    	
+					    	}
 						else {
 							// values as integers OR in version 1.8 never double quote values
+							// asterisk 1.8 doesn't like the null values when no db match found so set var as "(nullstring)" before comparison
+							$ext->add($context, $extension, '', new ext_execif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'}=""]','Set',$smartroute_queries[$main_query]['adv_varname1'].'="NULL"'));							
 							$ext->add($context, $extension, '', new ext_gotoif('$[${'.$smartroute_queries[$main_query]['adv_varname1'].'} '.$matchtype.' '.$dest['matchkey'].']',"destination".$index));
 							}
 						}
