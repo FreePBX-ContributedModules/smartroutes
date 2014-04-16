@@ -17,7 +17,7 @@
  *
 */
 
-include '../fax/functions.inc.php';  // so we can include the same fax hook code that the standard inbound route includes (if available)
+// include '../fax/functions.inc.php';  // so we can include the same fax hook code that the standard inbound route includes (if available)
 
 // return a list of smartroutes for menu/display
 function smartroutes_list() {
